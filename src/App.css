@@ -583,3 +583,76 @@ body.dark-mode {
     width: 100%;
   }
 }
+
+
+.heart-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  padding: 0;
+}
+
+.heart-button:hover {
+  transform: scale(1.1);
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.heart-button.liked {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+
+.heart-button-plain {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none !important;
+  border: none;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  padding: 0;
+}
+
+.heart-button-plain:hover {
+  transform: scale(1.1);
+}
+
+.heart-icon {
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.5));
+}
+
+.liked .heart-icon {
+  transform: scale(1.2);
+  filter: drop-shadow(0 0 3px rgba(255, 77, 79, 0.7));
+}
+
+.heart-button-plain:active .heart-icon {
+  transform: scale(0.8);
+}
+
+/* Ẩn style cũ */
+.heart-button {
+  display: none !important;
+}
+
+.like-button {
+  display: none !important;
+}

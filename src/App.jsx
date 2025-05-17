@@ -8,6 +8,7 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  // Kiểm tra theme đã lưu trong localStorage
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
@@ -18,6 +19,7 @@ function App() {
 
   const handleStart = () => {
     setIsAnimating(true);
+    // Thêm animation trước khi chuyển màn hình
     setTimeout(() => {
       setShowWelcome(false);
       setIsAnimating(false);
@@ -26,6 +28,7 @@ function App() {
 
   const handleBackToWelcome = () => {
     setIsAnimating(true);
+    // Thêm animation trước khi chuyển màn hình
     setTimeout(() => {
       setShowWelcome(true);
       setIsAnimating(false);

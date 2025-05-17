@@ -48,7 +48,7 @@ const ContentTabs = () => {
     }
   };
 
-  // Load more videos when scrolling to bottom
+  // Load more videos for the active tab only
   const handleLoadMore = async () => {
     if (isLoading || !hasMore) return;
     
@@ -78,40 +78,45 @@ const ContentTabs = () => {
     }
   };
 
-  // Handle like/unlike video
+  // Handle like/unlike video within the current tab only
   const handleLikeToggle = async (videoId, currentlyLiked) => {
     try {
       const updatedVideo = await toggleLike(videoId, !currentlyLiked);
       
-      // Update both video lists
-      const updateVideoList = (list) => {
-        return list.map(video => 
-          video.id === videoId ? updatedVideo : video
-        );
-      };
-      
-      setVideos(prev => updateVideoList(prev));
-      setLikedVideos(prev => updateVideoList(prev));
-      
-      // Update the video in the correct list based on its new category
-      if (updatedVideo.category === 'liked' && !likedVideos.some(v => v.id === videoId)) {
-        setLikedVideos(prev => [...prev, updatedVideo]);
-      } else if (updatedVideo.category === 'video' && !videos.some(v => v.id === videoId)) {
-        setVideos(prev => [...prev, updatedVideo]);
+      if (activeTab === 'videos') {
+        // Nếu đang ở tab Videos, cập nhật video trong danh sách videos
+        // hoặc xóa video nếu nó được chuyển sang danh sách liked
+        if (updatedVideo.category === 'video') {
+          setVideos(prev => 
+            prev.map(video => video.id === videoId ? updatedVideo : video)
+          );
+        } else {
+          // Nếu video được like, xóa khỏi danh sách videos
+          setVideos(prev => prev.filter(video => video.id !== videoId));
+        }
+      } else {
+        // Nếu đang ở tab Liked, cập nhật video trong danh sách liked
+        // hoặc xóa video nếu nó được chuyển sang danh sách videos
+        if (updatedVideo.category === 'liked') {
+          setLikedVideos(prev => 
+            prev.map(video => video.id === videoId ? updatedVideo : video)
+          );
+        } else {
+          // Nếu video được unlike, xóa khỏi danh sách liked
+          setLikedVideos(prev => prev.filter(video => video.id !== videoId));
+        }
       }
+      
     } catch (error) {
       console.error('Failed to toggle like status:', error);
-      // Thêm thông báo lỗi
       alert('Failed to update like status. Please try again.');
     }
   };
 
   // Handle retry on error
   const handleRetry = () => {
-    // Reset error state
     setError(null);
     
-    // Reload videos
     const loadVideos = async () => {
       setIsLoading(true);
       
@@ -140,6 +145,21 @@ const ContentTabs = () => {
 
   // Get the current videos based on active tab
   const currentVideos = activeTab === 'videos' ? videos : likedVideos;
+
+  // Render heart icon with proper styling
+  const HeartIcon = ({ isLiked }) => (
+    <svg 
+      className="heart-icon"
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill={isLiked ? "#ff4d4f" : "none"} 
+      stroke={isLiked ? "#ff4d4f" : "white"} 
+      strokeWidth="2"
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
 
   return (
     <div className="content-tabs">
@@ -186,13 +206,14 @@ const ContentTabs = () => {
                   <span>{video.views}</span>
                 </div>
                 <div className="duration">{video.duration}</div>
+                
+                {/* Thay đổi nút thích */}
                 <button 
-                  className={`like-button ${video.category === 'liked' ? 'liked' : ''}`}
+                  className={`heart-button-plain ${video.category === 'liked' ? 'liked' : ''}`}
                   onClick={() => handleLikeToggle(video.id, video.category === 'liked')}
+                  aria-label={video.category === 'liked' ? 'Unlike' : 'Like'}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill={video.category === 'liked' ? 'red' : 'none'} stroke={video.category === 'liked' ? 'red' : 'white'} strokeWidth="2">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
+                  <HeartIcon isLiked={video.category === 'liked'} />
                 </button>
               </div>
               <div className="video-title">{video.title}</div>
@@ -203,7 +224,7 @@ const ContentTabs = () => {
       
       {isLoading && <LoadingIndicator />}
       
-      {!isLoading && !error && hasMore && (
+      {!isLoading && !error && hasMore && currentVideos.length > 0 && (
         <button className="load-more-button" onClick={handleLoadMore}>
           Load More
         </button>
@@ -218,6 +239,159 @@ const ContentTabs = () => {
           {activeTab === 'liked' ? 'No liked videos yet' : 'No videos available'}
         </div>
       )}
+
+      <style jsx>{`
+        .content-tabs {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .tabs-header {
+          display: flex;
+          border-bottom: 1px solid #eee;
+        }
+        
+        .tab-button {
+          flex: 1;
+          background: none;
+          border: none;
+          padding: 15px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          color: #666;
+          position: relative;
+          cursor: pointer;
+        }
+        
+        .tab-button.active {
+          color: #333;
+          font-weight: 600;
+        }
+        
+        .tab-button.active::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background-color: #ff4d4f;
+        }
+        
+        .media-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 15px;
+          padding: 15px;
+        }
+        
+        .media-item {
+          position: relative;
+        }
+        
+        .thumbnail {
+          position: relative;
+          aspect-ratio: 9/16;
+          overflow: hidden;
+          border-radius: 8px;
+        }
+        
+        .thumbnail img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        
+        .views, .duration {
+          position: absolute;
+          bottom: 10px;
+          background: rgba(0, 0, 0, 0.5);
+          color: white;
+          font-size: 12px;
+          padding: 3px 6px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        
+        .views {
+          left: 10px;
+        }
+        
+        .duration {
+          right: 10px;
+        }
+        
+        .heart-button-plain {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: none;
+          border: none;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          z-index: 10;
+          padding: 0;
+        }
+        
+        .heart-button-plain:hover {
+          transform: scale(1.1);
+        }
+        
+        .heart-icon {
+          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.5));
+        }
+        
+        .liked .heart-icon {
+          transform: scale(1.2);
+          filter: drop-shadow(0 0 3px rgba(255, 77, 79, 0.7));
+        }
+        
+        .heart-button-plain:active .heart-icon {
+          transform: scale(0.8);
+        }
+        
+        .video-title {
+          font-size: 14px;
+          margin-top: 8px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .load-more-button {
+          display: block;
+          width: 80%;
+          margin: 15px auto;
+          padding: 10px;
+          background-color: #f5f5f5;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          color: #666;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .load-more-button:hover {
+          background-color: #e9e9e9;
+        }
+        
+        .end-message, .no-videos-message {
+          text-align: center;
+          padding: 20px;
+          color: #999;
+        }
+      `}</style>
     </div>
   );
 };
