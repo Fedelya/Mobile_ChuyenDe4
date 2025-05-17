@@ -35,7 +35,7 @@ const WelcomeScreen = ({ onStart }) => {
         <h1 className={`fade-in-text ${visible ? 'visible' : ''}`}>
           <span className="welcome-line">Welcome to</span>
           <br />
-          <span className="premium-line">Premium</span>
+          <span className="premium-line">Premium!</span>
         </h1>
         <div className="dots">
           <span className="dot"></span>
