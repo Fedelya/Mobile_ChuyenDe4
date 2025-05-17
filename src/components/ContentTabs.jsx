@@ -1,6 +1,7 @@
 // components/ContentTabs.jsx
 import { useState, useEffect } from 'react';
 import { fetchVideos, fetchMoreVideos, toggleLike } from '../services/videoApi';
+import LoadingIndicator from './LoadingIndicator';
 
 const ContentTabs = () => {
   const [activeTab, setActiveTab] = useState('videos');
@@ -9,23 +10,32 @@ const ContentTabs = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch videos when tab changes or component mounts
   useEffect(() => {
     const loadVideos = async () => {
       setIsLoading(true);
-      const category = activeTab === 'videos' ? 'video' : 'liked';
-      const data = await fetchVideos(category);
+      setError(null);
       
-      if (category === 'video') {
-        setVideos(data);
-      } else {
-        setLikedVideos(data);
+      try {
+        const category = activeTab === 'videos' ? 'video' : 'liked';
+        const data = await fetchVideos(category);
+        
+        if (category === 'video') {
+          setVideos(data);
+        } else {
+          setLikedVideos(data);
+        }
+        
+        setPage(1);
+        setHasMore(data.length > 0);
+      } catch (err) {
+        setError(`Failed to load ${activeTab}. Please try again.`);
+        console.error(err);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setPage(1);
-      setHasMore(data.length > 0);
-      setIsLoading(false);
     };
     
     loadVideos();
@@ -43,22 +53,29 @@ const ContentTabs = () => {
     if (isLoading || !hasMore) return;
     
     setIsLoading(true);
-    const nextPage = page + 1;
-    const category = activeTab === 'videos' ? 'video' : 'liked';
-    const moreVideos = await fetchMoreVideos(category, nextPage);
+    setError(null);
     
-    if (moreVideos.length === 0) {
-      setHasMore(false);
-    } else {
-      if (category === 'video') {
-        setVideos(prev => [...prev, ...moreVideos]);
+    try {
+      const nextPage = page + 1;
+      const category = activeTab === 'videos' ? 'video' : 'liked';
+      const moreVideos = await fetchMoreVideos(category, nextPage);
+      
+      if (moreVideos.length === 0) {
+        setHasMore(false);
       } else {
-        setLikedVideos(prev => [...prev, ...moreVideos]);
+        if (category === 'video') {
+          setVideos(prev => [...prev, ...moreVideos]);
+        } else {
+          setLikedVideos(prev => [...prev, ...moreVideos]);
+        }
+        setPage(nextPage);
       }
-      setPage(nextPage);
+    } catch (err) {
+      setError('Failed to load more videos. Please try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   // Handle like/unlike video
@@ -84,7 +101,41 @@ const ContentTabs = () => {
       }
     } catch (error) {
       console.error('Failed to toggle like status:', error);
+      // Thêm thông báo lỗi
+      alert('Failed to update like status. Please try again.');
     }
+  };
+
+  // Handle retry on error
+  const handleRetry = () => {
+    // Reset error state
+    setError(null);
+    
+    // Reload videos
+    const loadVideos = async () => {
+      setIsLoading(true);
+      
+      try {
+        const category = activeTab === 'videos' ? 'video' : 'liked';
+        const data = await fetchVideos(category);
+        
+        if (category === 'video') {
+          setVideos(data);
+        } else {
+          setLikedVideos(data);
+        }
+        
+        setPage(1);
+        setHasMore(data.length > 0);
+      } catch (err) {
+        setError(`Failed to load ${activeTab}. Please try again.`);
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadVideos();
   };
 
   // Get the current videos based on active tab
@@ -114,48 +165,55 @@ const ContentTabs = () => {
         </button>
       </div>
       
-      <div className="media-grid">
-        {currentVideos.map(video => (
-          <div key={video.id} className="media-item">
-            <div className="thumbnail">
-              <img src={video.thumbnail} alt={video.title} />
-              <div className="views">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="white">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <span>{video.views}</span>
-              </div>
-              <div className="duration">{video.duration}</div>
-              <button 
-                className={`like-button ${video.category === 'liked' ? 'liked' : ''}`}
-                onClick={() => handleLikeToggle(video.id, video.category === 'liked')}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill={video.category === 'liked' ? 'red' : 'none'} stroke={video.category === 'liked' ? 'red' : 'white'} strokeWidth="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-              </button>
-            </div>
-            <div className="video-title">{video.title}</div>
-          </div>
-        ))}
-      </div>
-      
-      {isLoading && (
-        <div className="loading-indicator">Loading more videos...</div>
+      {error && (
+        <div className="error-container">
+          <div className="error-message">{error}</div>
+          <button className="retry-button" onClick={handleRetry}>Try Again</button>
+        </div>
       )}
       
-      {!isLoading && hasMore && (
+      {!error && (
+        <div className="media-grid">
+          {currentVideos.map(video => (
+            <div key={video.id} className="media-item">
+              <div className="thumbnail">
+                <img src={video.thumbnail} alt={video.title} />
+                <div className="views">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="white">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>{video.views}</span>
+                </div>
+                <div className="duration">{video.duration}</div>
+                <button 
+                  className={`like-button ${video.category === 'liked' ? 'liked' : ''}`}
+                  onClick={() => handleLikeToggle(video.id, video.category === 'liked')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill={video.category === 'liked' ? 'red' : 'none'} stroke={video.category === 'liked' ? 'red' : 'white'} strokeWidth="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                </button>
+              </div>
+              <div className="video-title">{video.title}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {isLoading && <LoadingIndicator />}
+      
+      {!isLoading && !error && hasMore && (
         <button className="load-more-button" onClick={handleLoadMore}>
           Load More
         </button>
       )}
       
-      {!isLoading && !hasMore && currentVideos.length > 0 && (
+      {!isLoading && !error && !hasMore && currentVideos.length > 0 && (
         <div className="end-message">No more videos to load</div>
       )}
       
-      {!isLoading && currentVideos.length === 0 && (
+      {!isLoading && !error && currentVideos.length === 0 && (
         <div className="no-videos-message">
           {activeTab === 'liked' ? 'No liked videos yet' : 'No videos available'}
         </div>

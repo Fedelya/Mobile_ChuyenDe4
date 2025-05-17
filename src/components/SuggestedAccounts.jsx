@@ -1,6 +1,7 @@
 // components/SuggestedAccounts.jsx
 import { useState, useEffect } from 'react';
 import { fetchSuggestedAccounts, fetchMoreAccounts } from '../services/api';
+import LoadingIndicator from './LoadingIndicator';
 
 const SuggestedAccounts = () => {
   const [accounts, setAccounts] = useState([]);
@@ -8,14 +9,22 @@ const SuggestedAccounts = () => {
   const [showAll, setShowAll] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch initial suggested accounts (limited to 3)
   useEffect(() => {
     const loadInitialAccounts = async () => {
       setIsLoading(true);
-      const data = await fetchSuggestedAccounts(3);
-      setAccounts(data);
-      setIsLoading(false);
+      try {
+        const data = await fetchSuggestedAccounts(3);
+        setAccounts(data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load suggested accounts');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadInitialAccounts();
@@ -28,42 +37,54 @@ const SuggestedAccounts = () => {
       setShowAll(true);
       setIsLoading(true);
       
-      const moreAccounts = await fetchMoreAccounts(page);
-      
-      if (moreAccounts.length === 0) {
-        setHasMore(false);
-      } else {
-        setAccounts(prevAccounts => {
-          // Create a map of existing IDs to avoid duplicates
-          const existingIds = new Set(prevAccounts.map(account => account.id));
-          // Filter out duplicates
-          const newAccounts = moreAccounts.filter(account => !existingIds.has(account.id));
-          return [...prevAccounts, ...newAccounts];
-        });
-        setPage(prevPage => prevPage + 1);
+      try {
+        const moreAccounts = await fetchMoreAccounts(page);
+        
+        if (moreAccounts.length === 0) {
+          setHasMore(false);
+        } else {
+          setAccounts(prevAccounts => {
+            // Create a map of existing IDs to avoid duplicates
+            const existingIds = new Set(prevAccounts.map(account => account.id));
+            // Filter out duplicates
+            const newAccounts = moreAccounts.filter(account => !existingIds.has(account.id));
+            return [...prevAccounts, ...newAccounts];
+          });
+          setPage(prevPage => prevPage + 1);
+        }
+        setError(null);
+      } catch (err) {
+        setError('Failed to load more accounts');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     } else if (hasMore) {
       // Already expanded, load more
       setIsLoading(true);
       
-      const moreAccounts = await fetchMoreAccounts(page);
-      
-      if (moreAccounts.length === 0) {
-        setHasMore(false);
-      } else {
-        setAccounts(prevAccounts => {
-          // Create a map of existing IDs to avoid duplicates
-          const existingIds = new Set(prevAccounts.map(account => account.id));
-          // Filter out duplicates
-          const newAccounts = moreAccounts.filter(account => !existingIds.has(account.id));
-          return [...prevAccounts, ...newAccounts];
-        });
-        setPage(prevPage => prevPage + 1);
+      try {
+        const moreAccounts = await fetchMoreAccounts(page);
+        
+        if (moreAccounts.length === 0) {
+          setHasMore(false);
+        } else {
+          setAccounts(prevAccounts => {
+            // Create a map of existing IDs to avoid duplicates
+            const existingIds = new Set(prevAccounts.map(account => account.id));
+            // Filter out duplicates
+            const newAccounts = moreAccounts.filter(account => !existingIds.has(account.id));
+            return [...prevAccounts, ...newAccounts];
+          });
+          setPage(prevPage => prevPage + 1);
+        }
+        setError(null);
+      } catch (err) {
+        setError('Failed to load more accounts');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     }
   };
 
@@ -78,18 +99,50 @@ const SuggestedAccounts = () => {
     );
   };
 
+  // Handle retry on error
+  const handleRetry = () => {
+    setError(null);
+    setPage(1);
+    setHasMore(true);
+    
+    if (!showAll) {
+      // Retry loading initial accounts
+      const loadInitialAccounts = async () => {
+        setIsLoading(true);
+        try {
+          const data = await fetchSuggestedAccounts(3);
+          setAccounts(data);
+        } catch (err) {
+          setError('Failed to load suggested accounts');
+          console.error(err);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      loadInitialAccounts();
+    } else {
+      // Retry loading more accounts
+      handleViewMore();
+    }
+  };
+
   return (
     <div className="suggested-accounts">
       <div className="section-header">
         <h3>Suggested accounts</h3>
         <button 
-          onClick={handleViewMore} 
-          className="view-more"
-          disabled={isLoading || (!hasMore && showAll)}
+          onClick={error ? handleRetry : handleViewMore} 
+          className={`view-more ${error ? 'retry' : ''}`}
+          disabled={isLoading || (!hasMore && showAll && !error)}
         >
-          {isLoading ? 'Loading...' : hasMore ? 'View more' : 'No more accounts'}
+          {isLoading ? 'Loading...' : 
+           error ? 'Retry' : 
+           hasMore ? 'View more' : 'No more accounts'}
         </button>
       </div>
+      
+      {error && <div className="error-message">{error}</div>}
       
       <div className={`accounts-list ${showAll ? 'expanded' : ''}`}>
         {accounts.map(account => (
@@ -107,9 +160,7 @@ const SuggestedAccounts = () => {
           </div>
         ))}
         
-        {isLoading && (
-          <div className="loading-indicator">Loading...</div>
-        )}
+        {isLoading && <LoadingIndicator size="small" />}
       </div>
     </div>
   );
